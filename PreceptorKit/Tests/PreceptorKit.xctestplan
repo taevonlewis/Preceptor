@@ -1,0 +1,39 @@
+{
+  "configurations" : [
+    {
+      "id" : "29E0CF5A-7D3A-46E1-BA09-F736A1913520",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "testInteropMode" : "complete"
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "PreceptorCoreTests",
+        "name" : "PreceptorCoreTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "PreceptorIntegrationTests",
+        "name" : "PreceptorIntegrationTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "PreceptorStoreTests",
+        "name" : "PreceptorStoreTests"
+      }
+    }
+  ],
+  "version" : 1
+}
