@@ -6,8 +6,17 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CE482B0C307308390006467B /* PreceptorCore in Frameworks */ = {isa = PBXBuildFile; productRef = CE482B0B307308390006467B /* PreceptorCore */; };
+		CE482B0E307308390006467B /* PreceptorExtract in Frameworks */ = {isa = PBXBuildFile; productRef = CE482B0D307308390006467B /* PreceptorExtract */; };
+		CE482B10307308390006467B /* PreceptorGenerate in Frameworks */ = {isa = PBXBuildFile; productRef = CE482B0F307308390006467B /* PreceptorGenerate */; };
+		CE482B12307308390006467B /* PreceptorStore in Frameworks */ = {isa = PBXBuildFile; productRef = CE482B11307308390006467B /* PreceptorStore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* Preceptor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Preceptor.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CE482B033072FC210006467B /* PreceptorKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = PreceptorKit; sourceTree = "<group>"; };
+		CE64DFF630737AC5002D9DEB /* PreceptorKit.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; name = PreceptorKit.xctestplan; path = PreceptorKit/Tests/PreceptorKit.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -22,6 +31,10 @@
 		000000000000000130000000 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				CE482B10307308390006467B /* PreceptorGenerate in Frameworks */,
+				CE482B0C307308390006467B /* PreceptorCore in Frameworks */,
+				CE482B0E307308390006467B /* PreceptorExtract in Frameworks */,
+				CE482B12307308390006467B /* PreceptorStore in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -30,6 +43,8 @@
 		000000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				CE64DFF630737AC5002D9DEB /* PreceptorKit.xctestplan */,
+				CE482B033072FC210006467B /* PreceptorKit */,
 				000000000000000000000010 /* Preceptor */,
 				000000000000000000000020 /* Products */,
 			);
@@ -60,6 +75,12 @@
 				000000000000000000000010 /* Preceptor */,
 			);
 			name = Preceptor;
+			packageProductDependencies = (
+				CE482B0B307308390006467B /* PreceptorCore */,
+				CE482B0D307308390006467B /* PreceptorExtract */,
+				CE482B0F307308390006467B /* PreceptorGenerate */,
+				CE482B11307308390006467B /* PreceptorStore */,
+			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* Preceptor.app */;
 			productType = "com.apple.product-type.application";
@@ -88,6 +109,9 @@
 			);
 			mainGroup = 000000000000000000000001;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CE482B0A307308390006467B /* XCLocalSwiftPackageReference "PreceptorKit" */,
+			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
 			projectDirPath = "";
@@ -341,6 +365,32 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		CE482B0A307308390006467B /* XCLocalSwiftPackageReference "PreceptorKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = PreceptorKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CE482B0B307308390006467B /* PreceptorCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PreceptorCore;
+		};
+		CE482B0D307308390006467B /* PreceptorExtract */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PreceptorExtract;
+		};
+		CE482B0F307308390006467B /* PreceptorGenerate */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PreceptorGenerate;
+		};
+		CE482B11307308390006467B /* PreceptorStore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PreceptorStore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 000000000000000000000000 /* Project object */;
 }
