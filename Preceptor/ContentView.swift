@@ -6,6 +6,7 @@ import PreceptorStore
 struct ContentView: View {
     let generator: any StudyGenerating
     let store: any GeneratedBatchStoring
+    let loadRequest: @Sendable () async throws -> GenerationRequest
     @State private var storedRecord: StoredGeneratedBatch? = nil
     @State private var recordID: UUID = UUID()
     @State private var errorMessage: String? = nil
@@ -16,14 +17,6 @@ struct ContentView: View {
     private var proposals: [GeneratedProposal] {
         storedRecord?.generatedBatch.array ?? []
     }
-
-    private static let sampleRequest = GenerationRequest(
-        documentID: UUID(),
-        sourceRevisionID: UUID(),
-        extractionRevisionID: UUID(),
-        sourceTextID: UUID(),
-        text: "sample text"
-    )
 
     var body: some View {
         NavigationStack {
@@ -52,11 +45,9 @@ struct ContentView: View {
                         }
                     }
                 } else if proposals.isEmpty {
-                    ContentUnavailableView(
-                        "No Questions",
+                    ContentUnavailableView("No Questions",
                         systemImage: "text.magnifyingglass",
-                        description: Text("The source didn't produce any proposals.")
-                    )
+                        description: Text("The source didn't produce any proposals."))
                 } else {
                     List(proposals.indices, id: \.self) { index in
                         if let record = storedRecord {
@@ -78,7 +69,6 @@ struct ContentView: View {
         .task(id: attempt) {
             await generateAndStore()
         }
-
     }
 
     private func generateAndStore() async {
@@ -92,7 +82,8 @@ struct ContentView: View {
         }
 
         do {
-            let batch = try await generator.generate(Self.sampleRequest)
+            let request = try await loadRequest()
+            let batch = try await generator.generate(request)
             _ = try await store.save(batch, recordID: recordID)
             let loadedRecord = try await store.load(recordID: recordID)
 
@@ -130,14 +121,21 @@ private struct ProposalRow: View {
 }
 
 #Preview("Live clock — verify Regenerate") {
-    ContentView(generator: DeterministicStudyGenerator(), store: InMemoryGeneratedBatchStore(now: { Date() }))
+    ContentView(generator: DeterministicStudyGenerator(),
+        store: InMemoryGeneratedBatchStore(now: { Date() }),
+        loadRequest: { previewRequest })
 }
 
 #Preview("Fixed date — timestamp display") {
-    ContentView(generator: DeterministicStudyGenerator(), store: InMemoryGeneratedBatchStore(
-            now: {
-                Date(timeIntervalSince1970: 1_000)
-            }
-        )
-    )
+    ContentView(generator: DeterministicStudyGenerator(),
+        store: InMemoryGeneratedBatchStore(now: {
+            Date(timeIntervalSince1970: 1_000)
+        }),
+        loadRequest: { previewRequest })
 }
+
+nonisolated private let previewRequest = GenerationRequest(documentID: UUID(),
+    sourceRevisionID: UUID(),
+    extractionRevisionID: UUID(),
+    sourceTextID: UUID(),
+    text: "sample text")
