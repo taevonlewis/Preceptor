@@ -23,6 +23,13 @@
     {
       "target" : {
         "containerPath" : "container:",
+        "identifier" : "PreceptorExtractTests",
+        "name" : "PreceptorExtractTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:",
         "identifier" : "PreceptorIntegrationTests",
         "name" : "PreceptorIntegrationTests"
       }
