@@ -24,20 +24,24 @@ by the current scaffold.
 ## Current state
 
 The repository currently contains a SwiftUI scaffold and a local Swift package.
-The app runs a deterministic sample through generation, in-memory storage, and
-display. It does not yet import materials, use a language model, persist records
-between launches, or provide the complete study workflow.
+The app persists the typed sample's immutable source, extraction, and text-unit
+identities in a local SwiftData store, then runs generation, in-memory generated
+batch storage, and display. Repeated launches reuse those source identities.
+It does not yet import materials, use a language model, persist generated batches,
+or provide the complete study workflow.
 
 The package separates responsibilities into four modules:
 
-- **PreceptorCore:** Foundation-only values and generation/storage contracts.
-- **PreceptorExtract:** the boundary for future extraction implementations.
+- **PreceptorCore:** Foundation-only source values and pipeline contracts.
+- **PreceptorExtract:** deterministic original-byte and ordered-manifest hashing.
 - **PreceptorGenerate:** deterministic sample generation.
-- **PreceptorStore:** in-memory storage with an injectable clock.
+- **PreceptorStore:** immutable SwiftData source history and in-memory generated
+  batch storage with an injectable clock.
 
 Unit and integration tests cover generation, cancellation, storage conflicts,
-repeat saves, and the generate-save-load flow. Xcode Cloud configuration is
-tracked separately from the scaffold. The release path is TestFlight validation
+repeat saves, source identity and durability, and the generate-save-load flow.
+Xcode Cloud configuration is tracked separately from the scaffold. The release
+path is TestFlight validation
 followed by App Store submission; the app is not currently distributed.
 
 ## Development
@@ -60,7 +64,7 @@ xcrun swift test --package-path PreceptorKit --explicit-target-dependency-import
 ```
 
 For tests in Xcode, open `PreceptorKit/Package.swift` and use the shared
-**PreceptorKit** scheme. Its test plan selects all three test targets.
+**PreceptorKit** scheme. Its test plan selects all four test targets.
 
 Run a clean Simulator build:
 
