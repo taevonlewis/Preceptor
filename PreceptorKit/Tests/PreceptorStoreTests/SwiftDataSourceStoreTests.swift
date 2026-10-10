@@ -738,6 +738,131 @@ struct SwiftDataSourceStoreTests {
             }
         }
     }
+
+    @Test("Started attempts survive reopening without publishing a source")
+    func durableImportAttemptStart() async throws {
+        let fixture = try SourceStoreFixture()
+
+        defer {
+            fixture.remove()
+        }
+
+        let store = try fixture.store()
+        let source = try fixture.source()
+        let attemptID = UUID()
+        let createdAt = Date(timeIntervalSince1970: 2_000)
+
+        #expect(try await store.importAttempt(id: attemptID) == nil)
+
+        let attempt = try await store.beginImportAttempt(id: attemptID, source: source, createdAt: createdAt)
+
+        #expect(attempt.encodingVersion == 1)
+        #expect(attempt.id == attemptID)
+        #expect(attempt.documentID == source.documentID)
+        #expect(attempt.contentHash == source.contentHash)
+        #expect(attempt.createdAt == createdAt)
+        #expect(attempt.state == .started)
+        #expect(attempt.finishedAt == nil)
+        #expect(attempt.sourceRevisionID == nil)
+        #expect(try await store.sourceRevision(id: source.id) == nil)
+
+        let reopened = try fixture.store()
+
+        #expect(try await reopened.importAttempt(id: attemptID) == attempt)
+
+        await #expect(throws: SourceStoreError.conflictingRecordID) {
+            try await reopened.beginImportAttempt(id: attemptID, source: source, createdAt: Date(timeIntervalSince1970: 3_000))
+        }
+
+        #expect(try await reopened.importAttempt(id: attemptID) == attempt)
+        #expect(try await reopened.sourceRevision(id: source.id) == nil)
+    }
+
+    @Test("Failed or cancelled attempt saves leave no durable admission", arguments: CommitFault.allCases)
+    private func failedImportAttemptStart(_ fault: CommitFault) async throws {
+        let fixture = try SourceStoreFixture()
+
+        defer {
+            fixture.remove()
+        }
+
+        let source = try fixture.source()
+        let attemptID = UUID()
+        let failing = try SwiftDataSourceStore(storeURL: fixture.storeURL, localAssetsDirectoryURL: fixture.assetsURL,
+                                              beforeSave: { try fault.inject() })
+
+        let task = Task {
+            try await failing.beginImportAttempt(id: attemptID, source: source, createdAt: Date(timeIntervalSince1970: 2_000))
+        }
+
+        switch fault {
+        case .failure:
+            await #expect(throws: SourceSaveFailure.simulated) {
+                try await task.value
+            }
+        case .cancellation:
+            await #expect(throws: CancellationError.self) {
+                try await task.value
+            }
+        }
+
+        let reopened = try fixture.store()
+
+        #expect(try await reopened.importAttempt(id: attemptID) == nil)
+        #expect(try await reopened.sourceRevision(id: source.id) == nil)
+    }
+
+    @Test("Nonfinite attempt timestamps are rejected before insertion", arguments: [Double.infinity, -Double.infinity, Double.nan])
+    func invalidImportAttemptDates(_ timestamp: Double) async throws {
+        let fixture = try SourceStoreFixture()
+
+        defer {
+            fixture.remove()
+        }
+
+        let store = try fixture.store()
+        let source = try fixture.source()
+        let attemptID = UUID()
+
+        await #expect(throws: SourceStoreError.corruptRecord) {
+            try await store.beginImportAttempt(id: attemptID, source: source, createdAt: Date(timeIntervalSince1970: timestamp))
+        }
+
+        let reopened = try fixture.store()
+
+        #expect(try await reopened.importAttempt(id: attemptID) == nil)
+        #expect(try await reopened.sourceRevision(id: source.id) == nil)
+    }
+
+    @Test("Unsupported attempt versions and states fail explicitly", arguments: [false, true])
+    func corruptImportAttemptFormats(_ changesVersion: Bool) async throws {
+        let fixture = try SourceStoreFixture()
+
+        defer {
+            fixture.remove()
+        }
+
+        let store = try fixture.store()
+        let source = try fixture.source()
+        let attemptID = UUID()
+
+        _ = try await store.beginImportAttempt(id: attemptID, source: source, createdAt: Date(timeIntervalSince1970: 2_000))
+
+        let writer = SourceIntegrityWriter(modelContainer: store.modelContainer)
+        try await writer.corruptImportAttempt(id: attemptID, changesVersion: changesVersion)
+
+        let reopened = try fixture.store()
+
+        if changesVersion {
+            await #expect(throws: SourceStoreError.unsupportedRecordVersion(2)) {
+                try await reopened.importAttempt(id: attemptID)
+            }
+        } else {
+            await #expect(throws: SourceStoreError.corruptRecord) {
+                try await reopened.importAttempt(id: attemptID)
+            }
+        }
+    }
 }
 
 private struct SourceStoreFixture {
@@ -871,6 +996,22 @@ private actor SourceIntegrityWriter {
                 modelContext.insert(try SourceRecordMapper.unitRecord(unit, extractionID: extraction.id))
             }
         }
+        try modelContext.save()
+    }
+
+    func corruptImportAttempt(id: UUID, changesVersion: Bool) throws {
+        modelContext.autosaveEnabled = false
+
+        let row = try #require(modelContext.fetch(FetchDescriptor<SourceStoreSchema.ImportAttemptRecord>(predicate: #Predicate {
+            $0.id == id
+        })).first)
+
+        if changesVersion {
+            row.recordVersion = 2
+        } else {
+            row.stateRaw = "future-state"
+        }
+
         try modelContext.save()
     }
 

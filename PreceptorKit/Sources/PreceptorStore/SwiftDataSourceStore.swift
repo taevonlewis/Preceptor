@@ -42,6 +42,39 @@ public actor SwiftDataSourceStore: ModelActor, SourceRevisionStoring {
         self.beforeSave = beforeSave
     }
 
+    func beginImportAttempt(id: UUID, source: SourceRevisionSnapshot, createdAt: Date) throws -> SourceImportAttempt {
+        try Task.checkCancellation()
+        try SourceRecordMapper.validateSource(source)
+
+        guard createdAt.timeIntervalSince1970.isFinite else {
+            throw SourceStoreError.corruptRecord
+        }
+
+        guard try importAttemptRow(id: id) == nil else {
+            throw SourceStoreError.conflictingRecordID
+        }
+
+        let row = Schema.ImportAttemptRecord()
+        row.id = id
+        row.createdAt = createdAt
+        row.documentID = source.documentID
+        row.contentHash = source.contentHash.hexDigest
+        row.stateRaw = SourceImportAttempt.State.started.rawValue
+
+        let attempt = try mappedImportAttempt(row)
+
+        try commit {
+            modelContext.insert(row)
+        }
+
+        return attempt
+    }
+
+    public func importAttempt(id: UUID) throws -> SourceImportAttempt? {
+        try Task.checkCancellation()
+        return try importAttemptRow(id: id).map(mappedImportAttempt)
+    }
+
     public func saveSource(_ revision: SourceRevisionSnapshot) throws -> SourceRevisionSnapshot {
         try Task.checkCancellation()
         try SourceRecordMapper.validateSource(revision)
@@ -210,6 +243,53 @@ public actor SwiftDataSourceStore: ModelActor, SourceRevisionStoring {
             }
         }
     }
+
+    private func importAttemptRow(id: UUID) throws -> Schema.ImportAttemptRecord? {
+        let rows = try modelContext.fetch(FetchDescriptor<Schema.ImportAttemptRecord>(
+            predicate: #Predicate { $0.id == id }))
+
+        guard rows.count <= 1 else {
+            throw SourceStoreError.corruptRecord
+        }
+
+        return rows.first
+    }
+
+    private func mappedImportAttempt(_ row: Schema.ImportAttemptRecord) throws -> SourceImportAttempt {
+        try SourceRecordMapper.supported(row.recordVersion)
+
+        guard row.createdAt.timeIntervalSince1970.isFinite, let state = SourceImportAttempt.State(rawValue: row.stateRaw) else {
+            throw SourceStoreError.corruptRecord
+        }
+
+        let contentHash = try SourceContentHash(hexDigest: row.contentHash)
+
+        if state == .started {
+            guard row.finishedAt == nil, row.sourceRevisionID == nil else {
+                throw SourceStoreError.corruptRecord
+            }
+        } else {
+            guard let finishedAt = row.finishedAt, finishedAt.timeIntervalSince1970.isFinite else {
+                throw SourceStoreError.corruptRecord
+            }
+
+            if state == .completed {
+                guard let sourceID = row.sourceRevisionID, let committedSource = try source(id: sourceID),
+                      committedSource.documentID == row.documentID, committedSource.contentHash == contentHash else {
+                    throw SourceStoreError.corruptRecord
+                }
+            } else {
+                guard row.sourceRevisionID == nil else {
+                    throw SourceStoreError.corruptRecord
+                }
+            }
+        }
+
+        return SourceImportAttempt(encodingVersion: row.recordVersion, id: row.id, documentID: row.documentID,
+                                   contentHash: contentHash, createdAt: row.createdAt, state: state,
+                                   finishedAt: row.finishedAt, sourceRevisionID: row.sourceRevisionID)
+    }
+
 
     private func source(id: UUID) throws -> SourceRevisionSnapshot? {
         let rows = try modelContext.fetch(FetchDescriptor<Schema.SourceRecord>(predicate: #Predicate { $0.id == id }))
